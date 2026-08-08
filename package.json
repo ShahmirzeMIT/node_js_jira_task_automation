@@ -1,0 +1,41 @@
+{
+  "name": "node_js_jira_task_automation",
+  "version": "1.0.0",
+  "description": "Node.js backend for Jira and GitHub task automation",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"No tests specified\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShahmirzeMIT/node_js_jira_task_automation.git"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "jira",
+    "github",
+    "automation",
+    "api"
+  ],
+  "author": "ShahmirzeMIT",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ShahmirzeMIT/node_js_jira_task_automation/issues"
+  },
+  "homepage": "https://github.com/ShahmirzeMIT/node_js_jira_task_automation#readme",
+  "dependencies": {
+    "axios": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "firebase": "^12.17.1",
+    "firebase-admin": "^14.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
