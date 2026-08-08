@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { db } from '../../config/firebase.js';
 
 // Jira API base URLs
 const JIRA_API_BASE = 'https://api.atlassian.com';
