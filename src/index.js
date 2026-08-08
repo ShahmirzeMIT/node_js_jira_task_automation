@@ -4,7 +4,8 @@ import cors from 'cors';
 
 import { jiraLogin } from './jira/canvas_login.js';
 import { jiraCallback } from './jira/canvas_callback.js';
-
+import jiraRouter from './jira/jira_routes.js';
+import githubRouter from './github/canvas_github_integration/canvasGithubIntegrationRoute.js';
 dotenv.config();
 
 const app = express();
@@ -20,6 +21,9 @@ app.get('/', (req, res) => {
 
 app.get('/auth/jira', jiraLogin);
 app.get('/auth/jira/callback', jiraCallback);
+app.use('/auth/jira', jiraRouter);
+app.use('/github', githubRouter);
+
 
 
 const PORT = process.env.PORT || 3000;

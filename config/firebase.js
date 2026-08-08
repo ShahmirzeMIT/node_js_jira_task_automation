@@ -51,8 +51,6 @@ db.settings({ ignoreUndefinedProperties: true });
 const bucket = getStorage().bucket();
 
 export {
-
   db,
   bucket,
-
 };
