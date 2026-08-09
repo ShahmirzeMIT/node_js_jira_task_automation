@@ -75,21 +75,31 @@ export const handleGitHubCallback = async (req, res) => {
     }
 
     const { projectId, userId } = sessionData;
+    const tokenParams = new URLSearchParams({
+      client_id: GITHUB_CLIENT_ID,
+      client_secret: GITHUB_CLIENT_SECRET,
+      code,
+      redirect_uri: GITHUB_CALLBACK_URL
+    });
     const tokenRes = await axios.post(
       'https://github.com/login/oauth/access_token',
+      tokenParams.toString(),
       {
-        client_id: GITHUB_CLIENT_ID,
-        client_secret: GITHUB_CLIENT_SECRET,
-        code,
-        redirect_uri: GITHUB_CALLBACK_URL
-      },
-      { headers: { Accept: 'application/json' } }
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
     );
 
-    const { access_token } = tokenRes.data;
+    const { access_token, error, error_description } = tokenRes.data;
     if (!access_token) {
-      return res.status(401).json({ message: 'Failed to get GitHub access token' ,
-        status:401
+      console.error('❌ GitHub token exchange rejected:', { error, error_description });
+      return res.status(400).json({
+        message: 'GitHub rejected the OAuth authorization code',
+        githubError: error || 'unknown_error',
+        details: error_description || 'Start the GitHub authorization flow again and use the new code once.',
+        status: 400
       });
     }
     const userRes = await axios.get('https://api.github.com/user', {
