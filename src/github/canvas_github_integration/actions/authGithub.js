@@ -16,10 +16,10 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) {
   process.exit(1);
 }
 export const initiateGitHubOAuth = async (req, res) => {
-  const { projectId, userId } = req.body;
+  const { userId } = req.body;
 
-  if (!projectId || !userId) {
-    return res.status(400).json({ error: "Missing projectId or userId in request body" });
+  if (!userId) {
+    return res.status(400).json({ error: "Missing userId in request body" });
   }
 
   try {

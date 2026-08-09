@@ -6,7 +6,7 @@ import { jiraLogin } from './jira/canvas_login.js';
 import { jiraCallback } from './jira/canvas_callback.js';
 import jiraRouter from './jira/jira_routes.js';
 import githubRouter from './github/canvas_github_integration/canvasGithubIntegrationRoute.js';
-dotenv.config();
+import githubAuth from './github/canvas_github_integration/canvasGithubAuth.js';
 
 const app = express();
 
@@ -23,6 +23,8 @@ app.get('/auth/jira', jiraLogin);
 app.get('/auth/jira/callback', jiraCallback);
 app.use('/canvas/jira', jiraRouter);
 app.use('/github', githubRouter);
+app.use('/github/auth', githubAuth);
+
 
 
 

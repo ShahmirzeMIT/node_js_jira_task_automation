@@ -8,7 +8,7 @@ import {
 
 const router = express.Router();
 
-router.post('/auth', initiateGitHubOAuth);
+router.post('/login', initiateGitHubOAuth);
 
 router.post('/callback', handleGitHubCallback);
 
