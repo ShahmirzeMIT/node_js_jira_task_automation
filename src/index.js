@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
 
 app.get('/auth/jira', jiraLogin);
 app.get('/auth/jira/callback', jiraCallback);
-app.use('/auth/jira', jiraRouter);
+app.use('/canvas/jira', jiraRouter);
 app.use('/github', githubRouter);
 
 
