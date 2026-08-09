@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import admin from 'firebase-admin';
+import { randomUUID } from 'node:crypto';
 import { db } from '../../../../config/firebase.js';
 import { GetCurrentDateTime } from '../../../../utility/CommonUtils.js';
 
@@ -16,21 +17,28 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) {
   process.exit(1);
 }
 export const initiateGitHubOAuth = async (req, res) => {
-  const { userId } = req.body;
+  const { userId, projectId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: "Missing userId in request body" });
   }
 
   try {
-    const state = Math.random().toString(36).substring(2);
+    const state = randomUUID();
 
-    await db.collection('oauth_sessions').doc(state).set({
+    const session = {
       createdAt: GetCurrentDateTime(),
       status: 'pending',
-      projectId,
       userId
-    });
+    };
+
+    // `projectId` is optional for the standalone /github/auth/login endpoint.
+    // Firestore rejects undefined field values, so only persist it when supplied.
+    if (state) {
+      session.projectId = state;
+    }
+
+    await db.collection('oauth_sessions').doc(state).set(session);
 
     const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(GITHUB_CALLBACK_URL)}&scope=repo,user&state=${state}`;
 
@@ -118,13 +126,15 @@ export const handleGitHubCallback = async (req, res) => {
       githubId,
       login
     });
-    const projectRef = db.collection('circle-projects').doc(projectId);
-    await projectRef.set(
-      {
-        auth: admin.firestore.FieldValue.arrayUnion(githubId.toString())
-      },
-      { merge: true }
-    );
+    if (projectId) {
+      const projectRef = db.collection('circle-projects').doc(projectId);
+      await projectRef.set(
+        {
+          auth: admin.firestore.FieldValue.arrayUnion(githubId.toString())
+        },
+        { merge: true }
+      );
+    }
     return res.status(200).json({
       message: 'GitHub authentication successful',
       status: 200,
@@ -138,6 +148,7 @@ export const handleGitHubCallback = async (req, res) => {
       githubId: githubId.toString()
     });
   } catch (err) {
+    console.error('❌ GitHub OAuth callback error:', err);
     res.status(500).json({ message: "Authentication failed" ,
     status:500
     });
