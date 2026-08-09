@@ -36,9 +36,6 @@ if (!getApps().length) {
 }
 
 
-
-
-
 // Get Firestore instances
 const db = getFirestore();
 

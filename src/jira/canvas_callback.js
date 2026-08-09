@@ -171,10 +171,6 @@ export const jiraCallback = async (req, res) => {
     const locale = jiraUserInfo.locale || null;
     const groups = jiraUserInfo.groups?.items?.map(g => g.name) || [];
 
-    console.log(`👤 Jira user: ${jiraDisplayName} (${jiraAccountId})`);
-    console.log(`📧 Email: ${jiraUserEmail}`);
-    console.log(`🌍 Timezone: ${timezone}`);
-
     // ============================================
     // 8. CHECK FOR EXISTING CONNECTION
     // ============================================
@@ -264,13 +260,13 @@ export const jiraCallback = async (req, res) => {
     };
 
     await jiraUserRef.set(jiraUserData, { merge: true });
-    console.log('✅ Jira user data saved to Firebase');
+  
 
     // ============================================
     // 10. UPDATE USERS COLLECTION (OPSIONAL)
     // ============================================
     try {
-      const userRef = db.collection('users').doc(userId);
+      const userRef = db.collection('jira_users').doc(userId);
       await userRef.update({
         'jiraIntegration': {
           connected: true,
@@ -335,7 +331,7 @@ export const jiraCallback = async (req, res) => {
       sessionId
     };
 
-    console.log(`🎉 Jira connection successful for user ${userId}`);
+  
 
     res.json({
       success: true,
