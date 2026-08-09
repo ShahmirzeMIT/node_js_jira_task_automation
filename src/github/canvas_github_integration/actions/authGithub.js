@@ -17,7 +17,7 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) {
   process.exit(1);
 }
 export const initiateGitHubOAuth = async (req, res) => {
-  const { userId, projectId } = req.body;
+  const { userId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: "Missing userId in request body" });
@@ -34,9 +34,7 @@ export const initiateGitHubOAuth = async (req, res) => {
 
     // `projectId` is optional for the standalone /github/auth/login endpoint.
     // Firestore rejects undefined field values, so only persist it when supplied.
-    if (projectId) {
-      session.projectId = projectId;
-    }
+
 
     await db.collection('oauth_sessions').doc(state).set(session);
 
@@ -74,7 +72,7 @@ export const handleGitHubCallback = async (req, res) => {
        });
     }
 
-    const { projectId, userId } = sessionData;
+    const {  userId } = sessionData;
     const tokenRes = await axios.post(
       'https://github.com/login/oauth/access_token',
       {
