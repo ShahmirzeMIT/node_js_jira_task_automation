@@ -34,8 +34,8 @@ export const initiateGitHubOAuth = async (req, res) => {
 
     // `projectId` is optional for the standalone /github/auth/login endpoint.
     // Firestore rejects undefined field values, so only persist it when supplied.
-    if (state) {
-      session.projectId = state;
+    if (projectId) {
+      session.projectId = projectId;
     }
 
     await db.collection('oauth_sessions').doc(state).set(session);
@@ -75,31 +75,21 @@ export const handleGitHubCallback = async (req, res) => {
     }
 
     const { projectId, userId } = sessionData;
-    const tokenParams = new URLSearchParams({
-      client_id: GITHUB_CLIENT_ID,
-      client_secret: GITHUB_CLIENT_SECRET,
-      code,
-      redirect_uri: GITHUB_CALLBACK_URL
-    });
     const tokenRes = await axios.post(
       'https://github.com/login/oauth/access_token',
-      tokenParams.toString(),
       {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: GITHUB_CALLBACK_URL
+      },
+      { headers: { Accept: 'application/json' } }
     );
 
-    const { access_token, error, error_description } = tokenRes.data;
+    const { access_token } = tokenRes.data;
     if (!access_token) {
-      console.error('❌ GitHub token exchange rejected:', { error, error_description });
-      return res.status(400).json({
-        message: 'GitHub rejected the OAuth authorization code',
-        githubError: error || 'unknown_error',
-        details: error_description || 'Start the GitHub authorization flow again and use the new code once.',
-        status: 400
+      return res.status(401).json({ message: 'Failed to get GitHub access token' ,
+        status:401
       });
     }
     const userRes = await axios.get('https://api.github.com/user', {
