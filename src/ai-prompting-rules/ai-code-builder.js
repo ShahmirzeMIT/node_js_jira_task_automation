@@ -135,7 +135,7 @@ END OF FILE
     }
 
     // Return response
-    return res.status(200).json(parsedResponse);
+    return res.status(200).json({ data: parsedResponse , status: "200", message: "Gemini API response processed successfully" });
   } catch (error) {
     console.error("Gemini API Error:", error);
 
