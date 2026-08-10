@@ -7,7 +7,7 @@ import { jiraCallback } from './jira/canvas_callback.js';
 import jiraRouter from './jira/jira_routes.js';
 import githubRouter from './github/canvas_github_integration/canvasGithubIntegrationRoute.js';
 import githubAuth from './github/canvas_github_integration/canvasGithubAuth.js';
-
+import indexAi from './ai-prompting-rules/index-ai.js';
 const app = express();
 
 app.use(cors());
@@ -24,6 +24,7 @@ app.get('/auth/jira/callback', jiraCallback);
 app.use('/canvas/jira', jiraRouter);
 app.use('/github', githubRouter);
 app.use('/github/auth', githubAuth);
+app.use('/ai', indexAi);
 
 
 

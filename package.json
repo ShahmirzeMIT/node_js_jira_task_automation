@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/ShahmirzeMIT/node_js_jira_task_automation#readme",
   "dependencies": {
+    "@google/genai": "^2.16.0",
     "axios": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
