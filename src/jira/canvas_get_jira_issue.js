@@ -29,8 +29,8 @@ export const getMyAssignedIssues = async (accessToken, cloudId, options = {}) =>
     const {
       maxResults = 50,
       fields = ['summary', 'status', 'priority', 'project', 'issuetype', 'created', 'updated'],
-      statuses = [],
-      projectKeys = [],
+      statuses = [], // Məsələn: ['"In Progress"', '"To Do"']
+      projectKeys = [], // Məsələn: ['PROJ1', 'PROJ2']
       nextPageToken,
       includeSubtasks = false
     } = options;
@@ -38,6 +38,7 @@ export const getMyAssignedIssues = async (accessToken, cloudId, options = {}) =>
     // JQL query - assignee = currentUser()
     let jql = 'assignee = currentUser()';
     
+    // Əlavə filtrlər
     if (statuses.length > 0) {
       jql += ` AND status IN (${statuses.map(s => `"${s}"`).join(', ')})`;
     }
@@ -47,17 +48,19 @@ export const getMyAssignedIssues = async (accessToken, cloudId, options = {}) =>
     }
     
     if (!includeSubtasks) {
-      jql += ' AND issuetype != Sub-task';
+      jql += ' AND type != Sub-task';
     }
 
+    // Issue-ları axtar
     const response = await axios.get(
-      `${JIRA_API_BASE}/ex/jira/${cloudId}/rest/api/3/search`,
+      `${JIRA_API_BASE}/ex/jira/${cloudId}/rest/api/3/search/jql`,
       {
         params: {
           jql,
           fields: fields.join(','),
           maxResults,
-          startAt: nextPageToken ? parseInt(nextPageToken) : 0,
+          nextPageToken,
+          expand: ['renderedFields', 'names', 'schema']
         },
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -71,8 +74,8 @@ export const getMyAssignedIssues = async (accessToken, cloudId, options = {}) =>
       total: response.data.total,
       issues: response.data.issues,
       maxResults: response.data.maxResults,
-      startAt: response.data.startAt,
-      isLast: response.data.startAt + response.data.issues.length >= response.data.total
+      nextPageToken: response.data.nextPageToken,
+      isLast: response.data.isLast ?? !response.data.nextPageToken
     };
 
   } catch (error) {
@@ -81,36 +84,30 @@ export const getMyAssignedIssues = async (accessToken, cloudId, options = {}) =>
   }
 };
 
-// YENİ FUNKSİYA: Müəyyən istifadəçiyə assigne olunmuş issue-lar - DÜZƏLİŞ EDİLDİ
+// YENİ FUNKSİYA: Müəyyən istifadəçiyə assigne olunmuş issue-lar
 export const getIssuesAssignedToUser = async (accessToken, cloudId, accountId, options = {}) => {
   try {
     const {
       maxResults = 50,
       fields = ['summary', 'status', 'priority', 'project', 'issuetype', 'created', 'updated'],
       statuses = [],
-      startAt = 0,
+      nextPageToken,
     } = options;
 
-    // DÜZƏLİŞ: Account ID düzgün formatda olmalıdır
-    // JQL-də accountId düzgün istifadə edilməlidir
     let jql = `assignee = "${accountId}"`;
     
     if (statuses.length > 0) {
       jql += ` AND status IN (${statuses.map(s => `"${s}"`).join(', ')})`;
     }
 
-    console.log('🔍 JQL Query:', jql);
-    console.log('👤 Account ID:', accountId);
-    console.log('☁️ Cloud ID:', cloudId);
-
     const response = await axios.get(
-      `${JIRA_API_BASE}/ex/jira/${cloudId}/rest/api/3/search`,
+      `${JIRA_API_BASE}/ex/jira/${cloudId}/rest/api/3/search/jql`,
       {
         params: {
           jql,
           fields: fields.join(','),
           maxResults,
-          startAt,
+          nextPageToken,
         },
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -124,21 +121,17 @@ export const getIssuesAssignedToUser = async (accessToken, cloudId, accountId, o
       total: response.data.total,
       issues: response.data.issues,
       maxResults: response.data.maxResults,
-      startAt: response.data.startAt,
-      isLast: response.data.startAt + response.data.issues.length >= response.data.total
+      nextPageToken: response.data.nextPageToken,
+      isLast: response.data.isLast ?? !response.data.nextPageToken
     };
 
   } catch (error) {
-    console.error('Error details:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
+    console.error(`Error getting issues assigned to user ${accountId}:`, error.response?.data || error.message);
     throw error;
   }
 };
 
-// Bütün issue-ları səhifələrlə almaq
+// YENİ FUNKSİYA: Bütün issue-ları səhifələrlə almaq (pagination)
 export const getAllAssignedIssuesPaginated = async (accessToken, cloudId, options = {}) => {
   try {
     const {
@@ -149,7 +142,7 @@ export const getAllAssignedIssuesPaginated = async (accessToken, cloudId, option
     } = options;
 
     let allIssues = [];
-    let startAt = 0;
+    let nextPageToken;
     let total = 0;
     let pageCount = 0;
     let isLast = false;
@@ -159,17 +152,17 @@ export const getAllAssignedIssuesPaginated = async (accessToken, cloudId, option
         maxResults,
         fields,
         statuses,
-        startAt,
+        nextPageToken,
         includeSubtasks: false
       });
 
-      allIssues = allIssues.concat(result.issues || []);
-      total = result.total || 0;
-      isLast = result.isLast || false;
-      startAt += result.issues?.length || 0;
+      allIssues = allIssues.concat(result.issues);
+      total = result.total;
+      isLast = result.isLast;
+      nextPageToken = result.nextPageToken;
       pageCount++;
 
-      console.log(`📄 Page ${pageCount}: ${result.issues?.length || 0} issues loaded`);
+      console.log(`📄 Page ${pageCount}: ${result.issues.length} issues loaded`);
     }
 
     return {
