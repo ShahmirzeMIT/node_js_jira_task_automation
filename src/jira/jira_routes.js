@@ -1,6 +1,7 @@
 import express from 'express';
 import { getAccessibleResources } from './canvas_accessible_resources.js';
 import { getIssuesAssignedToUser } from './canvas_get_jira_issue.js';
+import { changeIssueStatus, getTransitions } from './jira_index.js';
 
 import { getValidAccessToken } from './canvas_token_manager.js';
 
@@ -122,6 +123,78 @@ router.post('/issues', async (req, res) => {
       success: false,
       status: 500,
       message: 'Error retrieving issues assigned to user',
+    });
+  }
+});
+
+router.post('/issue/status', async (req, res) => {
+  const { cloudId, accountId, issueKey, transitionId, statusName } = req.body ?? {};
+  const normalizedStatusName = typeof statusName === 'string' ? statusName.trim() : '';
+
+  if (!cloudId || !accountId || !issueKey) {
+    return res.status(400).json({
+      success: false,
+      status: 400,
+      message: 'cloudId, accountId and issueKey are required in the request body',
+    });
+  }
+
+  if (!transitionId && !normalizedStatusName) {
+    return res.status(400).json({
+      success: false,
+      status: 400,
+      message: 'transitionId or statusName is required in the request body',
+    });
+  }
+
+  try {
+    const accessToken = await getValidAccessToken(accountId);
+    let selectedTransitionId = transitionId;
+    let selectedTransition = null;
+
+    if (!selectedTransitionId) {
+      const transitionsData = await getTransitions(accessToken, cloudId, issueKey);
+      selectedTransition = transitionsData.transitions?.find((transition) => {
+        const requestedStatus = normalizedStatusName.toLowerCase();
+        return (
+          transition.name?.toLowerCase() === requestedStatus ||
+          transition.to?.name?.toLowerCase() === requestedStatus
+        );
+      });
+
+      if (!selectedTransition) {
+        return res.status(404).json({
+          success: false,
+          status: 404,
+          message: `No available transition found for statusName: ${normalizedStatusName}`,
+          availableTransitions: transitionsData.transitions ?? [],
+        });
+      }
+
+      selectedTransitionId = selectedTransition.id;
+    }
+
+    const data = await changeIssueStatus(accessToken, cloudId, issueKey, selectedTransitionId);
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      message: 'Issue status changed successfully',
+      issueKey,
+      transitionId: selectedTransitionId,
+      transition: selectedTransition,
+      data: data || null,
+    });
+  } catch (error) {
+    const tokenErrorResponse = handleTokenError(error, res);
+    if (tokenErrorResponse) return tokenErrorResponse;
+
+    console.error(`Error changing issue status for ${issueKey}:`, error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      status: error.response?.status || 500,
+      message: 'Error changing issue status',
+      error: error.response?.data || error.message,
     });
   }
 });
