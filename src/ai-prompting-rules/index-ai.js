@@ -5,6 +5,6 @@ import { geminiGenerateCode } from "./ai-code-builder.js";
 const router = express.Router();
 
 // Gemini route
-router.post('/gemini-generate', geminiGenerateCode);
+router.post('/llm-generate', geminiGenerateCode);
 
 export default router;
