@@ -37,13 +37,108 @@ ${OUTPUT_SCHEMA}
 ${VALIDATION_RULES}
 `;
 
+/**
+ * Walks a JSON-like string and escapes raw control characters
+ * (newlines, tabs, carriage returns, etc.) that appear INSIDE
+ * string literals, without touching valid existing escape sequences
+ * or structural characters outside strings.
+ *
+ * This fixes the common LLM failure mode where multi-line code is
+ * embedded in a JSON string value with literal \n instead of the
+ * two-character escape sequence \\n.
+ */
+function sanitizeJsonControlChars(input) {
+  let result = "";
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const code = input.charCodeAt(i);
+
+    if (escapeNext) {
+      // Previous char was a backslash; this char is already
+      // part of a valid escape sequence, pass it through as-is.
+      result += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === "\\" && inString) {
+      result += char;
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      result += char;
+      continue;
+    }
+
+    if (inString && code < 0x20) {
+      // Raw control character inside a string literal -> escape it
+      switch (char) {
+        case "\n":
+          result += "\\n";
+          break;
+        case "\r":
+          result += "\\r";
+          break;
+        case "\t":
+          result += "\\t";
+          break;
+        case "\b":
+          result += "\\b";
+          break;
+        case "\f":
+          result += "\\f";
+          break;
+        default:
+          result += "\\u" + code.toString(16).padStart(4, "0");
+      }
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+/**
+ * Attempts to parse a possibly-malformed JSON string returned by the
+ * AI model. Tries a straight parse first, then falls back to
+ * sanitizing control characters, since that's the most common failure.
+ */
+function safeParseAiJson(rawText) {
+  let cleanedText = rawText.trim();
+
+  const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleanedText = jsonMatch[0];
+  }
+
+  // First attempt: parse as-is
+  try {
+    return JSON.parse(cleanedText);
+  } catch (firstError) {
+    // Second attempt: sanitize control characters inside strings
+    try {
+      const sanitized = sanitizeJsonControlChars(cleanedText);
+      return JSON.parse(sanitized);
+    } catch (secondError) {
+      // Re-throw the more informative error
+      throw secondError;
+    }
+  }
+}
 
 // Gemini API Route - Generate Code Changes
 export const geminiGenerateCode = async (req, res) => {
   try {
     const { jiraTask, files } = req.body;
 
-    // Validate request
     if (!jiraTask) {
       return res.status(400).json({
         error: "Missing required field: jiraTask",
@@ -58,7 +153,6 @@ export const geminiGenerateCode = async (req, res) => {
       });
     }
 
-    // Validate each file
     for (const file of files) {
       if (!file.path || !file.content) {
         return res.status(400).json({
@@ -68,7 +162,6 @@ export const geminiGenerateCode = async (req, res) => {
       }
     }
 
-    // Build files context
     const filesContext = files
       .map(
         (file) => `
@@ -82,32 +175,21 @@ END OF FILE
       )
       .join("\n");
 
-    // Build final prompt
     const finalPrompt = SYSTEM_PROMPT
       .replace("{{JIRA_TASK}}", jiraTask)
       .replace("{{FILES}}", filesContext);
 
-    // Call Gemini API
     const result = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+      model: "gemini-3.6-flash",
       contents: finalPrompt,
     });
 
     const text = result.text ?? "";
 
-    // Parse response
     let parsedResponse;
 
     try {
-      let cleanedText = text.trim();
-
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-
-      if (jsonMatch) {
-        cleanedText = jsonMatch[0];
-      }
-
-      parsedResponse = JSON.parse(cleanedText);
+      parsedResponse = safeParseAiJson(text);
 
       if (!parsedResponse.status) {
         parsedResponse.status = "success";
@@ -134,8 +216,7 @@ END OF FILE
       };
     }
 
-    // Return response
-    return res.status(200).json({ data: parsedResponse , status: "200", message: "Gemini API response processed successfully" });
+    return res.status(200).json({ data: parsedResponse, status: "200", message: "Gemini API response processed successfully" });
   } catch (error) {
     console.error("Gemini API Error:", error);
 
