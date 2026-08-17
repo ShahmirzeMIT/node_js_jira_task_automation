@@ -1,4 +1,12 @@
 import axios from "axios";
+const getUserToken = async (userId) => {
+    if (!userId || typeof userId !== 'string') {
+        throw new Error("Invalid userId provided");
+    }
+    const doc = await db.collection('user_tokens').doc(userId).get();
+    if (!doc.exists) throw new Error("Token not found");
+    return doc.data().accessToken;
+};
 
 const pushChanges = async (req, res) => {
   const { userId, owner, repo, branch = "main", files, message } = req.body;
