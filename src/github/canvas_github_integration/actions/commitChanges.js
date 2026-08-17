@@ -1,5 +1,5 @@
 import axios from "axios";
-import { db } from "../../../../config/firebase";
+import { db } from "../../../../config/firebase.js";
 const getUserToken = async (userId) => {
     if (!userId || typeof userId !== 'string') {
         throw new Error("Invalid userId provided");
